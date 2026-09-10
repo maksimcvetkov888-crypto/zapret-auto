@@ -19,8 +19,6 @@ jobs:
             asset_name: zapret-auto-windows-x64.exe
           - os: ubuntu-latest
             asset_name: zapret-auto-linux-x64
-          - os: macos-latest
-            asset_name: zapret-auto-macos-arm64
 
     steps:
     - uses: actions/checkout@v4
