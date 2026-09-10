@@ -121,6 +121,7 @@ def get_strategy_flags(strategy_id="1"):
     p_tls_4pda = os.path.join(bin_dir, "tls_clienthello_4pda_to.bin")
     p_tls_max = os.path.join(bin_dir, "tls_clienthello_max_ru.bin")
     p_stun = os.path.join(bin_dir, "stun.bin")
+    p_stun2 = os.path.join(bin_dir, "stun2.bin")
 
     f_gen = os.path.join(lists_dir, "list-general.txt")
     f_goog = os.path.join(lists_dir, "list-google.txt")
@@ -136,11 +137,11 @@ def get_strategy_flags(strategy_id="1"):
     if str(strategy_id) == "1":
         return (
             f'{wf} {u_quic} {u_disc} '
-            f'--filter-tcp=2053,2083,2087,2096,8443 --hostlist-domains=discord.media --dpi-desync=multisplit --dpi-desync-split-seqovl=681 --dpi-desync-split-pos=1 --dpi-desync-split-seqovl-pattern=\\"{p_tls_google}\\" --new '
-            f'--filter-tcp=443 --hostlist=\\"{f_goog}\\" --ip-id=zero --dpi-desync=multisplit --dpi-desync-split-seqovl=681 --dpi-desync-split-pos=1 --dpi-desync-split-seqovl-pattern=\\"{p_tls_google}\\" --new '
-            f'--filter-tcp=80,443 --hostlist=\\"{f_gen}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=multisplit --dpi-desync-split-seqovl=568 --dpi-desync-split-pos=1 --dpi-desync-split-seqovl-pattern=\\"{p_tls_4pda}\\" --new '
+            f'--filter-tcp=2053,2083,2087,2096,8443 --hostlist-domains=discord.media --dpi-desync=fake,multisplit --dpi-desync-split-seqovl=681 --dpi-desync-split-pos=1 --dpi-desync-fooling=ts --dpi-desync-repeats=8 --dpi-desync-split-seqovl-pattern=\\"{p_tls_google}\\" --dpi-desync-fake-tls=\\"{p_tls_google}\\" --new '
+            f'--filter-tcp=443 --hostlist=\\"{f_goog}\\" --ip-id=zero --dpi-desync=fake,multisplit --dpi-desync-split-seqovl=681 --dpi-desync-split-pos=1 --dpi-desync-fooling=ts --dpi-desync-repeats=8 --dpi-desync-split-seqovl-pattern=\\"{p_tls_google}\\" --dpi-desync-fake-tls=\\"{p_tls_google}\\" --new '
+            f'--filter-tcp=80,443 --hostlist=\\"{f_gen}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=fake,multisplit --dpi-desync-split-seqovl=664 --dpi-desync-split-pos=1 --dpi-desync-fooling=ts --dpi-desync-repeats=8 --dpi-desync-split-seqovl-pattern=\\"{p_tls_max}\\" --dpi-desync-fake-tls=\\"{p_stun2}\\" --dpi-desync-fake-tls=\\"{p_tls_max}\\" --dpi-desync-fake-http=\\"{p_tls_max}\\" --new '
             f'{u_quic_ipset} '
-            f'--filter-tcp=80,443,8443 --ipset=\\"{f_ipset}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=multisplit --dpi-desync-split-seqovl=568 --dpi-desync-split-pos=1 --dpi-desync-split-seqovl-pattern=\\"{p_tls_4pda}\\"'
+            f'--filter-tcp=80,443,8443 --ipset=\\"{f_ipset}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=fake,multisplit --dpi-desync-split-seqovl=664 --dpi-desync-split-pos=1 --dpi-desync-fooling=ts --dpi-desync-repeats=8 --dpi-desync-split-seqovl-pattern=\\"{p_tls_max}\\" --dpi-desync-fake-tls=\\"{p_stun2}\\" --dpi-desync-fake-tls=\\"{p_tls_max}\\" --dpi-desync-fake-http=\\"{p_tls_max}\\"'
         )
     elif str(strategy_id) == "2":
         return (
@@ -737,7 +738,7 @@ def interactive_menu():
         print(f" Права администратора: [{admin_text}]")
         print("----------------------------------------------------------------")
         print("  :: SERVICE")
-        print("     1. Install Service (выбрать пресет: general, ALT 1-13, FAKE TLS...)")
+        print("     1. Install Service (установить ALT 11)")
         print("     2. Remove Services (удалить службу)")
         print("     3. Check Status    (проверить статус службы)")
         print()
@@ -760,22 +761,7 @@ def interactive_menu():
             terminate_conflicts(silent=True)
             fix_youtube_dns()
 
-            presets = get_bat_presets()
-            print("\nДоступные стратегии обхода (пресеты):")
-            for i, p in enumerate(presets, 1):
-                tag = " [Рекомендуемый / Default]" if p == "general.bat" else ""
-                print(f"   {i:2d}. {p}{tag}")
-            print("    0. Назад в главное меню")
-
-            sel = input(f"\nВыберите номер пресета [1-{len(presets)}, по умолчанию 1]: ").strip() or "1"
-            if sel == "0":
-                continue
-            try:
-                idx = int(sel) - 1
-                chosen = presets[idx]
-            except Exception:
-                chosen = "general.bat"
-
+            chosen = "general (ALT11).bat"
             flags = parse_bat_flags(chosen)
             if not flags:
                 flags = get_strategy_flags("1")

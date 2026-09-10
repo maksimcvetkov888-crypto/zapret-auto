@@ -71,7 +71,7 @@ echo.  !CurrentStrategy!
 echo   ----------------------------------------------------------------
 echo.
 echo   :: SERVICE
-echo      1. Install Service
+echo      1. Install Service (ALT 11)
 echo      2. Remove Services
 echo      3. Check Status
 echo.
@@ -235,36 +235,13 @@ cd /d "%~dp0"
 set "BIN_PATH=%~dp0bin\"
 set "LISTS_PATH=%~dp0lists\"
 
-:: Searching for .bat files in current folder, except files that start with "service"
-echo Pick one of the options:
-set "count=0"
-for /f "delims=" %%F in ('powershell -NoProfile -Command "Get-ChildItem -LiteralPath '.' -Filter '*.bat' | Where-Object { $_.Name -notlike 'service*' -and $_.Name -notlike 'run*' } | Sort-Object { [Regex]::Replace($_.Name, '(\d+)', { $args[0].Value.PadLeft(8, '0') }) } | ForEach-Object { $_.Name }"') do (
-    set /a count+=1
-    echo   !count!. %%F
-    set "file!count!=%%F"
-)
-
-echo   0. Exit
-
-echo.
-
-:: Choosing file
-set "choice="
-set /p "choice=Input option (0-!count!, default: 0): "
-if "!choice!"=="" (
-    set "choice=0"
-)
-
-if "!choice!"=="0" (
-    goto menu
-)
-
-set "selectedFile=!file%choice%!"
-if not defined selectedFile (
-    echo Invalid choice, exiting...
+set "selectedFile=general (ALT11).bat"
+if not exist "%selectedFile%" (
+    echo Error: %selectedFile% not found.
     pause
     goto menu
 )
+echo Installing service: %selectedFile%...
 
 :: Args that should be followed by value
 set "args_with_value=sni host altorder"
@@ -351,12 +328,14 @@ call set "ARGS=%%ARGS:EXCL_MARK=^!%%"
 echo Final args: !ARGS!
 set SRVCNAME=zapret
 
+net stop winws >nul 2>&1
+sc delete winws >nul 2>&1
 net stop %SRVCNAME% >nul 2>&1
 sc delete %SRVCNAME% >nul 2>&1
 sc create %SRVCNAME% binPath= "\"%BIN_PATH%winws.exe\" !ARGS!" DisplayName= "zapret" start= auto
 sc description %SRVCNAME% "Zapret DPI bypass software"
 sc start %SRVCNAME%
-for %%F in ("!file%choice%!") do (
+for %%F in ("!selectedFile!") do (
     set "filename=%%~nF"
 )
 reg add "HKLM\System\CurrentControlSet\Services\zapret" /v zapret-discord-youtube /t REG_SZ /d "!filename!" /f
