@@ -560,7 +560,68 @@ def run_diagnostics():
     print("================================================================")
     return rec
 
-def install_winws_service(flags=None, strategy_id="1", bin_name="winws.exe"):
+def get_current_strategy_name():
+    try:
+        res = subprocess.run(
+            'reg query "HKLM\\System\\CurrentControlSet\\Services\\zapret" /v zapret-discord-youtube',
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+        for line in res.stdout.splitlines():
+            if "zapret-discord-youtube" in line:
+                parts = line.strip().split(None, 2)
+                if len(parts) >= 3:
+                    return parts[2]
+    except Exception:
+        pass
+    return "general.bat"
+
+def get_bat_presets():
+    dirs = [INSTALL_DIR, get_base_dir(), "."]
+    presets = []
+    seen = set()
+    for d in dirs:
+        if os.path.isdir(d):
+            for f in sorted(os.listdir(d)):
+                if f.endswith(".bat") and f.startswith("general") and f not in seen:
+                    seen.add(f)
+                    presets.append(f)
+    if not presets:
+        presets = ["general.bat"] + [f"general (ALT{i}).bat" for i in range(1, 14)]
+    if "general.bat" in presets:
+        presets.remove("general.bat")
+        presets.insert(0, "general.bat")
+    return presets
+
+def parse_bat_flags(bat_filename):
+    full_path = None
+    for d in [INSTALL_DIR, get_base_dir(), "."]:
+        cand = os.path.join(d, bat_filename)
+        if os.path.isfile(cand):
+            full_path = cand
+            break
+    if not full_path:
+        return None
+    bin_dir = os.path.join(INSTALL_DIR, "bin") if os.path.isdir(os.path.join(INSTALL_DIR, "bin")) else get_bin_dir()
+    lists_dir = os.path.join(INSTALL_DIR, "lists") if os.path.isdir(os.path.join(INSTALL_DIR, "lists")) else get_lists_dir()
+    with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+        content = f.read()
+    idx = content.find("winws.exe")
+    if idx == -1:
+        return None
+    raw = content[idx + len("winws.exe"):]
+    for r in ["^\r\n", "^\n", "^"]:
+        raw = raw.replace(r, " ")
+    raw = raw.replace("%BIN%", bin_dir + "\\")
+    raw = raw.replace("%LISTS%", lists_dir + "\\")
+    raw = raw.replace("%GameFilterTCP%", "12").replace("%GameFilterUDP%", "12")
+    raw = " ".join(raw.split())
+    if raw.startswith('"'):
+        raw = raw[1:].strip()
+    return raw
+
+def install_winws_service(flags=None, strategy_id="1", bin_name="winws.exe", preset_name="general.bat"):
     if not is_admin():
         elevate_privileges()
         if not is_admin():
@@ -570,17 +631,14 @@ def install_winws_service(flags=None, strategy_id="1", bin_name="winws.exe"):
     if not ensure_binaries():
         return False
 
-    # Apply clean Google IPs to hosts to defeat ISP DNS poisoning
     fix_youtube_dns()
 
-    # Use clean ASCII path C:\zapret\bin\winws.exe
     inst_bin = os.path.join(INSTALL_DIR, "bin", bin_name)
     bin_path = inst_bin if os.path.exists(inst_bin) else os.path.join(INSTALL_DIR, bin_name)
 
     if flags is None:
         flags = get_strategy_flags(strategy_id)
 
-    # Clean existing service
     subprocess.run("sc.exe stop winws", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     subprocess.run("sc.exe delete winws", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     subprocess.run("sc.exe stop zapret", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -598,6 +656,12 @@ def install_winws_service(flags=None, strategy_id="1", bin_name="winws.exe"):
         return False
 
     subprocess.run('sc.exe description winws "Zapret DPI bypass software (YouTube, Discord, Telegram, Spotify)"', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.run(
+        f'reg.exe add "HKLM\\System\\CurrentControlSet\\Services\\zapret" /v zapret-discord-youtube /t REG_SZ /d "{preset_name}" /f',
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
 
     print("[ИНФО] Запуск службы...")
     start_res = subprocess.run("sc.exe start winws", shell=True, capture_output=True)
@@ -618,7 +682,8 @@ def control_service(action="status"):
         elevate_privileges()
     if action == "status":
         st = get_service_status("winws")
-        print(f"Статус службы Zapret: {st}")
+        strat = get_current_strategy_name()
+        print(f"Статус службы Zapret: {st} (Стратегия: {strat})")
     elif action == "start":
         res = subprocess.run("sc.exe start winws", shell=True, capture_output=True)
         print(res.stdout.decode('cp866', errors='replace'))
@@ -627,7 +692,9 @@ def control_service(action="status"):
         print(res.stdout.decode('cp866', errors='replace'))
     elif action == "remove":
         subprocess.run("sc.exe stop winws", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        res = subprocess.run("sc.exe delete winws", shell=True, capture_output=True)
+        subprocess.run("sc.exe delete winws", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run("sc.exe stop zapret", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run("sc.exe delete zapret", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         clean_youtube_dns()
         print("[OK] Служба zapret удалена из Windows, hosts очищен.")
 
@@ -659,80 +726,87 @@ def interactive_menu():
             st_text = "НЕ УСТАНОВЛЕНА / NOT INSTALLED"
 
         admin_text = "ДА (Администратор) / YES" if is_admin() else "НЕТ (Ограниченный) / NO"
-        procs, servs = find_conflicts()
-        conf_text = f"ОБНАРУЖЕНЫ ({len(procs) + len(servs)})" if (procs or servs) else "НЕТ / NONE"
+        strat_text = get_current_strategy_name()
 
         print()
         print("================================================================")
-        print("  ZAPRET-AUTO: АВТОМАТИЧЕСКИЙ ОБХОД (YOUTUBE, DISCORD, TG, SPOTIFY)")
+        print("  ZAPRET-AUTO SERVICE MANAGER (YouTube, Discord, TG, Spotify)")
+        print(f"  Активная стратегия: [{strat_text}]")
         print("================================================================")
         print(f" Статус службы:        [{st_text}]")
         print(f" Права администратора: [{admin_text}]")
-        print(f" Конфликты в системе:  [{conf_text}]")
         print("----------------------------------------------------------------")
-        print(" [1] ВКЛЮЧИТЬ ОБХОД (1 клик — автоматическая настройка и запуск)")
-        print(" [2] Выбрать профиль под своего провайдера (Flowseal стратегии)")
-        print(" [3] Проверить доступность YouTube, Discord, Telegram, Spotify")
-        print(" [4] Выключить обход (Остановить службу)")
-        print(" [5] Полностью удалить службу из Windows")
-        print(" [6] Закрыть конфликтующие программы (GoodbyeDPI и др.)")
-        print(" [7] Советы по настройке браузера и Discord (QUIC / RTC)")
-        print(" [0] Выход")
+        print("  :: SERVICE")
+        print("     1. Install Service (выбрать пресет: general, ALT 1-13, FAKE TLS...)")
+        print("     2. Remove Services (удалить службу)")
+        print("     3. Check Status    (проверить статус службы)")
+        print()
+        print("  :: TOOLS")
+        print("     4. Run Diagnostics (проверка YouTube, Discord, Telegram, Spotify)")
+        print("     5. Terminate Conflicts (закрыть конфликтующие процессы)")
+        print("     6. Browser Tips    (настройки QUIC и RTC)")
         print("----------------------------------------------------------------")
-        choice = input("Выберите действие [0-7]: ").strip()
+        print("     0. Exit")
+        print("----------------------------------------------------------------")
+        choice = input("Выберите действие [0-6]: ").strip()
 
         if choice == "1":
-            print("\n--- АВТОМАТИЧЕСКАЯ УСТАНОВКА И ЗАПУСК В 1 КЛИК ---")
             if not is_admin():
                 elevate_privileges()
-            print("[1/4] Проверка файлов winws, WinDivert, cygwin, пейлоадов и списков...")
+            print("\n[1/3] Проверка компонентов и списков (YouTube, Discord, TG, Spotify)...")
             if not ensure_binaries():
                 input("\nНажмите Enter для возврата...")
                 continue
-            print("[2/4] Очистка конфликтов (GoodbyeDPI / старые процессы)...")
             terminate_conflicts(silent=True)
-            print("[3/4] Настройка чистых DNS для YouTube...")
             fix_youtube_dns()
-            print("[4/4] Установка и запуск универсальной службы в C:\\zapret...")
-            ok = install_winws_service(strategy_id="1")
+
+            presets = get_bat_presets()
+            print("\nДоступные стратегии обхода (пресеты):")
+            for i, p in enumerate(presets, 1):
+                tag = " [Рекомендуемый / Default]" if p == "general.bat" else ""
+                print(f"   {i:2d}. {p}{tag}")
+            print("    0. Назад в главное меню")
+
+            sel = input(f"\nВыберите номер пресета [1-{len(presets)}, по умолчанию 1]: ").strip() or "1"
+            if sel == "0":
+                continue
+            try:
+                idx = int(sel) - 1
+                chosen = presets[idx]
+            except Exception:
+                chosen = "general.bat"
+
+            flags = parse_bat_flags(chosen)
+            if not flags:
+                flags = get_strategy_flags("1")
+
+            print(f"\n[2/3] Установка стратегии: {chosen}...")
+            ok = install_winws_service(flags=flags, preset_name=chosen)
             if ok:
                 print("\n" + "=" * 64)
-                print("  [✓] УСПЕШНО! YouTube 4K, Discord, Telegram и Spotify разблокированы.")
-                print("  [✓] Установлено в чистый путь C:\\zapret без сбоев кодировки.")
+                print(f"  [✓] УСПЕШНО! Установлена стратегия: {chosen}")
+                print("  [✓] YouTube 4K, Discord, Telegram и Spotify разблокированы.")
                 print("  [✓] Служба будет стартовать автоматически с Windows.")
                 print("=" * 64)
             input("\nНажмите Enter для продолжения...")
 
         elif choice == "2":
-            print("\nДоступные профили под провайдеров:")
-            for s in STRATEGIES:
-                print(f"  [{s['id']}] {s['name']}")
-                print(f"      {s['desc']}")
-            s_id = input("\nВыберите номер [1-5]: ").strip()
-            match = next((s for s in STRATEGIES if s["id"] == s_id), None)
-            if match:
-                install_winws_service(strategy_id=s_id)
-            else:
-                print("[ОШИБКА] Неверный номер профиля.")
-            input("\nНажмите Enter для продолжения...")
-
-        elif choice == "3":
-            run_diagnostics()
-            input("\nНажмите Enter для продолжения...")
-
-        elif choice == "4":
-            control_service("stop")
-            input("\nНажмите Enter для продолжения...")
-
-        elif choice == "5":
             control_service("remove")
             input("\nНажмите Enter для продолжения...")
 
-        elif choice == "6":
+        elif choice == "3":
+            control_service("status")
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == "4":
+            run_diagnostics()
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == "5":
             terminate_conflicts(silent=False)
             input("\nНажмите Enter для продолжения...")
 
-        elif choice == "7":
+        elif choice == "6":
             print_browser_tips()
             input("\nНажмите Enter для продолжения...")
 
