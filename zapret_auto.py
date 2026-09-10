@@ -387,6 +387,15 @@ def ensure_binaries():
                 except Exception:
                     pass
 
+        for f_name in ["general (ALT11).bat", "service.bat"]:
+            src = os.path.join(base_dir, f_name)
+            dest = os.path.join(INSTALL_DIR, f_name)
+            if os.path.isfile(src) and not os.path.exists(dest):
+                try:
+                    shutil.copy2(src, dest)
+                except Exception:
+                    pass
+
     return True
 
 def fix_youtube_dns():
