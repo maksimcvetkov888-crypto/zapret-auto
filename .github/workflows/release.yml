@@ -19,6 +19,8 @@ jobs:
             asset_name: zapret-auto-windows-x64.exe
           - os: ubuntu-latest
             asset_name: zapret-auto-linux-x64
+          - os: macos-latest
+            asset_name: zapret-auto-macos-arm64
 
     steps:
     - uses: actions/checkout@v4
@@ -37,7 +39,7 @@ jobs:
 
     - name: Build with PyInstaller (Unix)
       if: runner.os != 'Windows'
-      run: pyinstaller --onefile --add-data "bin:bin" --add-data "lists:lists" --name zapret-auto zapret_auto.py
+      run: pyinstaller --onefile --add-data "bin:bin" --add-data "lists:lists" --add-data "general (ALT11).bat:." --name zapret-auto zapret_auto.py
 
     - name: Rename asset (Windows)
       if: runner.os == 'Windows'
