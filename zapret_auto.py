@@ -81,6 +81,13 @@ def get_base_dir():
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.abspath(__file__))
 
+def get_bin_dir():
+    base = get_base_dir()
+    sub_bin = os.path.join(base, "bin")
+    if os.path.isdir(sub_bin):
+        return sub_bin
+    return base
+
 def get_strategy_flags(strategy_id="1"):
     base = INSTALL_DIR if platform.system() == "Windows" else get_base_dir()
     p_quic = os.path.join(base, "quic_initial_www_google_com.bin")
@@ -151,20 +158,22 @@ def elevate_privileges():
     return is_admin()
 
 def ensure_binaries():
-    """Verify winws binaries and Flowseal fake payload bin files exist in INSTALL_DIR."""
+    """Verify winws binaries and Flowseal fake payload bin files exist in INSTALL_DIR or bin/."""
     base_dir = get_base_dir()
+    bin_dir = get_bin_dir()
     if platform.system() == "Windows":
         try:
             os.makedirs(INSTALL_DIR, exist_ok=True)
         except Exception:
             pass
 
-    # Check which files are missing across base_dir and INSTALL_DIR
+    # Check which files are missing across bin_dir, base_dir and INSTALL_DIR
     missing = []
     for b in REQUIRED_BINARIES:
+        in_bin = os.path.exists(os.path.join(bin_dir, b))
         in_base = os.path.exists(os.path.join(base_dir, b))
         in_inst = os.path.exists(os.path.join(INSTALL_DIR, b))
-        if not in_base and not in_inst:
+        if not in_bin and not in_base and not in_inst:
             missing.append(b)
 
     if missing:
@@ -172,7 +181,7 @@ def ensure_binaries():
         print(f"[СКАЧИВАНИЕ] Загрузка компонентов zapret ({len(missing)} шт)...")
         print("----------------------------------------------------------------")
 
-        target_dir = INSTALL_DIR if os.path.exists(INSTALL_DIR) else base_dir
+        target_dir = bin_dir
 
         core_missing = [b for b in ["winws.exe", "WinDivert.dll", "WinDivert64.sys", "cygwin1.dll"] if b in missing]
         if core_missing:
@@ -210,7 +219,7 @@ def ensure_binaries():
     # Sync files into INSTALL_DIR to guarantee 100% clean ASCII path (C:\zapret)
     if platform.system() == "Windows" and os.path.exists(INSTALL_DIR):
         for b in REQUIRED_BINARIES:
-            src = os.path.join(base_dir, b)
+            src = os.path.join(bin_dir, b) if os.path.exists(os.path.join(bin_dir, b)) else os.path.join(base_dir, b)
             dst = os.path.join(INSTALL_DIR, b)
             if os.path.exists(src) and not os.path.exists(dst):
                 try:
