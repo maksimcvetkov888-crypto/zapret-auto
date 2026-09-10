@@ -43,9 +43,7 @@ jobs:
 
     - name: Rename asset (Windows)
       if: runner.os == 'Windows'
-      run: |
-        Move-Item dist/zapret-auto.exe dist/zapret-auto-windows-x64.exe
-        Compress-Archive -Path bin, lists, utils, .service, *.bat -DestinationPath dist/zapret-discord-youtube-${{ github.ref_name }}.zip
+      run: Move-Item dist/zapret-auto.exe dist/zapret-auto-windows-x64.exe
 
     - name: Rename asset (Unix)
       if: runner.os != 'Windows'
