@@ -35,11 +35,11 @@ jobs:
 
     - name: Build with PyInstaller (Windows)
       if: runner.os == 'Windows'
-      run: pyinstaller --onefile --uac-admin --name zapret-auto zapret_auto.py
+      run: pyinstaller --onefile --uac-admin --add-data "bin;bin" --add-data "lists;lists" --name zapret-auto zapret_auto.py
 
     - name: Build with PyInstaller (Unix)
       if: runner.os != 'Windows'
-      run: pyinstaller --onefile --name zapret-auto zapret_auto.py
+      run: pyinstaller --onefile --add-data "bin:bin" --add-data "lists:lists" --name zapret-auto zapret_auto.py
 
     - name: Rename asset (Windows)
       if: runner.os == 'Windows'

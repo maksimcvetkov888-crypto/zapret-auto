@@ -25,9 +25,21 @@ PAYLOAD_BASE_URL = "https://raw.githubusercontent.com/Flowseal/zapret-discord-yo
 
 PAYLOAD_FILES = [
     "ACTIVE_DISCORD_UDP.bin",
-    "tls_clienthello_www_google_com.bin",
+    "ACTIVE_GAME_UDP.bin",
     "quic_initial_www_google_com.bin",
-    "tls_clienthello_4pda_to.bin"
+    "tls_clienthello_www_google_com.bin",
+    "tls_clienthello_4pda_to.bin",
+    "tls_clienthello_max_ru.bin",
+    "stun.bin",
+    "stun2.bin"
+]
+
+LIST_FILES = [
+    "list-general.txt",
+    "list-google.txt",
+    "list-exclude.txt",
+    "ipset-all.txt",
+    "ipset-exclude.txt"
 ]
 
 REQUIRED_BINARIES = [
@@ -43,93 +55,130 @@ HOSTS_PATH = r"C:\Windows\System32\drivers\etc\hosts"
 STRATEGIES = [
     {
         "id": "1",
-        "name": "Универсальный (YouTube 4K + Discord Голос и Чат - Все провайдеры)",
-        "name_en": "Universal (YouTube 4K + Discord Voice & Chat - All ISPs)",
-        "desc": "Полный обход: YouTube QUIC fake + Discord UDP fake (50000-65535) + TLS multisplit."
+        "name": "General (Default - Multisplit Google/General + Discord UDP)",
+        "name_en": "General (Default - Multisplit Google/General + Discord UDP)",
+        "desc": "Flowseal классический: multisplit 4PDA + Google + Discord UDP (YouTube 4K, Discord, Telegram, Spotify)."
     },
     {
         "id": "2",
-        "name": "Ростелеком / МТС / Дом.ру (Fast Split + Discord Voice)",
-        "name_en": "Rostelecom / MTS / Dom.ru (Fast Split + Discord Voice)",
-        "desc": "Высокоскоростной режим для проводных провайдеров с минимальной задержкой."
+        "name": "General (ALT - Fake + Fakedsplit TS)",
+        "name_en": "General (ALT - Fake + Fakedsplit TS)",
+        "desc": "Альтернативный режим: фейковые TLS пакеты с временными метками TCP (Ростелеком, Дом.ру, МТС)."
     },
     {
         "id": "3",
-        "name": "Билайн / Мегафон (Fake Disoob + Discord Voice)",
-        "name_en": "Beeline / Megafon (Fake Disoob + Discord Voice)",
-        "desc": "Обход строгой ТСПУ-фильтрации мобильных сетей и региональных узлов."
+        "name": "General (ALT2 - Multisplit pos 2 seqovl 652)",
+        "name_en": "General (ALT2 - Multisplit pos 2 seqovl 652)",
+        "desc": "Смещение заголовков TLS с перекрытием 652 байта для строгой ТСПУ-фильтрации."
     },
     {
         "id": "4",
-        "name": "Tele2 / Региональные провайдеры (Autottl Combo + Discord Voice)",
-        "name_en": "Tele2 / Regional ISPs (Autottl Combo + Discord Voice)",
-        "desc": "Заниженный TTL и искажение контрольной суммы для обхода аппаратного ТСПУ."
+        "name": "General (FAKE TLS AUTO - Multidisorder)",
+        "name_en": "General (FAKE TLS AUTO - Multidisorder)",
+        "desc": "Динамический multidisorder с подменой SNI и session ID (Билайн, Мегафон, Tele2)."
     },
     {
         "id": "5",
-        "name": "Максимальный режим (Multi-split 4PDA + High Repeats)",
-        "name_en": "Maximum Mode (Multi-split 4PDA + High Repeats)",
-        "desc": "Повторы фейков и сплит по SNI для особо жестких условий блокировки."
+        "name": "General (SIMPLE FAKE - Hostfakesplit TS)",
+        "name_en": "General (SIMPLE FAKE - Hostfakesplit TS)",
+        "desc": "Облегченный fake desync для минимальной нагрузки на процессор."
     }
 ]
 
 CONFLICT_PROCS = ["winws.exe", "goodbyedpi.exe", "byedpi.exe", "ciadpi.exe"]
-CONFLICT_SERVICES = ["winws", "GoodbyeDPI", "WinDivert", "WinDivert14"]
+CONFLICT_SERVICES = ["winws", "zapret", "GoodbyeDPI", "WinDivert", "WinDivert14"]
 
 def get_base_dir():
     if getattr(sys, "frozen", False):
-        return os.path.dirname(sys.executable)
+        return getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
     return os.path.dirname(os.path.abspath(__file__))
 
 def get_bin_dir():
+    if platform.system() == "Windows" and os.path.isdir(os.path.join(INSTALL_DIR, "bin")):
+        return os.path.join(INSTALL_DIR, "bin")
     base = get_base_dir()
     sub_bin = os.path.join(base, "bin")
     if os.path.isdir(sub_bin):
         return sub_bin
     return base
 
+def get_lists_dir():
+    if platform.system() == "Windows" and os.path.isdir(os.path.join(INSTALL_DIR, "lists")):
+        return os.path.join(INSTALL_DIR, "lists")
+    base = get_base_dir()
+    sub_lists = os.path.join(base, "lists")
+    if os.path.isdir(sub_lists):
+        return sub_lists
+    return base
+
 def get_strategy_flags(strategy_id="1"):
-    base = INSTALL_DIR if platform.system() == "Windows" else get_base_dir()
-    p_quic = os.path.join(base, "quic_initial_www_google_com.bin")
-    p_discord = os.path.join(base, "ACTIVE_DISCORD_UDP.bin")
-    p_tls_google = os.path.join(base, "tls_clienthello_www_google_com.bin")
-    p_tls_4pda = os.path.join(base, "tls_clienthello_4pda_to.bin")
+    bin_dir = get_bin_dir()
+    lists_dir = get_lists_dir()
+
+    p_quic = os.path.join(bin_dir, "quic_initial_www_google_com.bin")
+    p_discord = os.path.join(bin_dir, "ACTIVE_DISCORD_UDP.bin")
+    p_tls_google = os.path.join(bin_dir, "tls_clienthello_www_google_com.bin")
+    p_tls_4pda = os.path.join(bin_dir, "tls_clienthello_4pda_to.bin")
+    p_tls_max = os.path.join(bin_dir, "tls_clienthello_max_ru.bin")
+    p_stun = os.path.join(bin_dir, "stun.bin")
+
+    f_gen = os.path.join(lists_dir, "list-general.txt")
+    f_goog = os.path.join(lists_dir, "list-google.txt")
+    f_excl = os.path.join(lists_dir, "list-exclude.txt")
+    f_ipset = os.path.join(lists_dir, "ipset-all.txt")
+    f_ipset_excl = os.path.join(lists_dir, "ipset-exclude.txt")
+
+    wf = "--wf-tcp=80,443,2053,2083,2087,2096,8443 --wf-udp=443,19294-19344,50000-50100"
+    u_quic = f'--filter-udp=443 --hostlist=\\"{f_gen}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic=\\"{p_quic}\\" --new'
+    u_disc = f'--filter-udp=19294-19344,50000-50100 --filter-l7=discord,stun --dpi-desync=fake --dpi-desync-fake-discord=\\"{p_discord}\\" --dpi-desync-fake-stun=\\"{p_discord}\\" --dpi-desync-repeats=6 --new'
+    u_quic_ipset = f'--filter-udp=443 --ipset=\\"{f_ipset}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic=\\"{p_quic}\\" --new'
 
     if str(strategy_id) == "1":
         return (
-            f'--wf-tcp=80,443,2053,2083,2087,2096,8443 --wf-udp=443,19294-19344,50000-50100 '
-            f'--filter-udp=443 --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic=\\"{p_quic}\\" --new '
-            f'--filter-udp=19294-19344,50000-50100 --filter-l7=discord,stun --dpi-desync=fake --dpi-desync-fake-discord=\\"{p_discord}\\" --dpi-desync-fake-stun=\\"{p_discord}\\" --dpi-desync-repeats=6 --new '
-            f'--filter-tcp=2053,2083,2087,2096,8443 --dpi-desync=multisplit --dpi-desync-split-seqovl=681 --dpi-desync-split-pos=1 --dpi-desync-split-seqovl-pattern=\\"{p_tls_google}\\" --new '
-            f'--filter-tcp=80,443 --dpi-desync=multisplit --dpi-desync-split-seqovl=681 --dpi-desync-split-pos=1 --dpi-desync-split-seqovl-pattern=\\"{p_tls_google}\\"'
+            f'{wf} {u_quic} {u_disc} '
+            f'--filter-tcp=2053,2083,2087,2096,8443 --hostlist-domains=discord.media --dpi-desync=multisplit --dpi-desync-split-seqovl=681 --dpi-desync-split-pos=1 --dpi-desync-split-seqovl-pattern=\\"{p_tls_google}\\" --new '
+            f'--filter-tcp=443 --hostlist=\\"{f_goog}\\" --ip-id=zero --dpi-desync=multisplit --dpi-desync-split-seqovl=681 --dpi-desync-split-pos=1 --dpi-desync-split-seqovl-pattern=\\"{p_tls_google}\\" --new '
+            f'--filter-tcp=80,443 --hostlist=\\"{f_gen}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=multisplit --dpi-desync-split-seqovl=568 --dpi-desync-split-pos=1 --dpi-desync-split-seqovl-pattern=\\"{p_tls_4pda}\\" --new '
+            f'{u_quic_ipset} '
+            f'--filter-tcp=80,443,8443 --ipset=\\"{f_ipset}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=multisplit --dpi-desync-split-seqovl=568 --dpi-desync-split-pos=1 --dpi-desync-split-seqovl-pattern=\\"{p_tls_4pda}\\"'
         )
     elif str(strategy_id) == "2":
         return (
-            f'--wf-tcp=80,443,2053,2083,2087,2096,8443 --wf-udp=443,19294-19344,50000-50100 '
-            f'--filter-udp=443 --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic=\\"{p_quic}\\" --new '
-            f'--filter-udp=19294-19344,50000-50100 --filter-l7=discord,stun --dpi-desync=fake --dpi-desync-fake-discord=\\"{p_discord}\\" --dpi-desync-fake-stun=\\"{p_discord}\\" --dpi-desync-repeats=6 --new '
-            f'--filter-tcp=80,443,2053,2083,2087,2096,8443 --dpi-desync=split2 --dpi-desync-split-pos=2'
+            f'{wf} {u_quic} {u_disc} '
+            f'--filter-tcp=2053,2083,2087,2096,8443 --hostlist-domains=discord.media --dpi-desync=fake,fakedsplit --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fakedsplit-pattern=0x00 --dpi-desync-fake-tls=\\"{p_tls_google}\\" --new '
+            f'--filter-tcp=443 --hostlist=\\"{f_goog}\\" --ip-id=zero --dpi-desync=fake,fakedsplit --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fakedsplit-pattern=0x00 --dpi-desync-fake-tls=\\"{p_tls_google}\\" --new '
+            f'--filter-tcp=80,443 --hostlist=\\"{f_gen}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=fake,fakedsplit --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fakedsplit-pattern=0x00 --dpi-desync-fake-tls=\\"{p_stun}\\" --dpi-desync-fake-tls=\\"{p_tls_google}\\" --dpi-desync-fake-http=\\"{p_tls_max}\\" --new '
+            f'{u_quic_ipset} '
+            f'--filter-tcp=80,443,8443 --ipset=\\"{f_ipset}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=fake,fakedsplit --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fakedsplit-pattern=0x00 --dpi-desync-fake-tls=\\"{p_stun}\\" --dpi-desync-fake-tls=\\"{p_tls_google}\\" --dpi-desync-fake-http=\\"{p_tls_max}\\"'
         )
     elif str(strategy_id) == "3":
         return (
-            f'--wf-tcp=80,443,2053,2083,2087,2096,8443 --wf-udp=443,19294-19344,50000-50100 '
-            f'--filter-udp=443 --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic=\\"{p_quic}\\" --new '
-            f'--filter-udp=19294-19344,50000-50100 --filter-l7=discord,stun --dpi-desync=fake --dpi-desync-fake-discord=\\"{p_discord}\\" --dpi-desync-fake-stun=\\"{p_discord}\\" --dpi-desync-repeats=6 --new '
-            f'--filter-tcp=80,443,2053,2083,2087,2096,8443 --dpi-desync=fake,disoob --dpi-desync-split-pos=1 --dpi-desync-fooling=badseq'
+            f'{wf} {u_quic} {u_disc} '
+            f'--filter-tcp=2053,2083,2087,2096,8443 --hostlist-domains=discord.media --dpi-desync=multisplit --dpi-desync-split-seqovl=652 --dpi-desync-split-pos=2 --dpi-desync-split-seqovl-pattern=\\"{p_tls_google}\\" --new '
+            f'--filter-tcp=443 --hostlist=\\"{f_goog}\\" --ip-id=zero --dpi-desync=multisplit --dpi-desync-split-seqovl=652 --dpi-desync-split-pos=2 --dpi-desync-split-seqovl-pattern=\\"{p_tls_google}\\" --new '
+            f'--filter-tcp=80,443 --hostlist=\\"{f_gen}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=multisplit --dpi-desync-split-seqovl=652 --dpi-desync-split-pos=2 --dpi-desync-split-seqovl-pattern=\\"{p_tls_google}\\" --new '
+            f'{u_quic_ipset} '
+            f'--filter-tcp=80,443,8443 --ipset=\\"{f_ipset}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=multisplit --dpi-desync-split-seqovl=652 --dpi-desync-split-pos=2 --dpi-desync-split-seqovl-pattern=\\"{p_tls_google}\\"'
         )
     elif str(strategy_id) == "4":
+        u_quic_11 = f'--filter-udp=443 --hostlist=\\"{f_gen}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=fake --dpi-desync-repeats=11 --dpi-desync-fake-quic=\\"{p_quic}\\" --new'
+        u_quic_ipset_11 = f'--filter-udp=443 --ipset=\\"{f_ipset}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=fake --dpi-desync-repeats=11 --dpi-desync-fake-quic=\\"{p_quic}\\" --new'
         return (
-            f'--wf-tcp=80,443,2053,2083,2087,2096,8443 --wf-udp=443,19294-19344,50000-50100 '
-            f'--filter-udp=443 --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic=\\"{p_quic}\\" --new '
-            f'--filter-udp=19294-19344,50000-50100 --filter-l7=discord,stun --dpi-desync=fake --dpi-desync-fake-discord=\\"{p_discord}\\" --dpi-desync-fake-stun=\\"{p_discord}\\" --dpi-desync-repeats=6 --new '
-            f'--filter-tcp=80,443,2053,2083,2087,2096,8443 --dpi-desync=fake --dpi-desync-ttl=4 --dpi-desync-fooling=badsum'
+            f'{wf} {u_quic_11} {u_disc} '
+            f'--filter-tcp=2053,2083,2087,2096,8443 --hostlist-domains=discord.media --dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,midsld --dpi-desync-repeats=11 --dpi-desync-fooling=badseq --dpi-desync-fake-tls=0x00000000 --dpi-desync-fake-tls=! --dpi-desync-fake-tls-mod=rnd,dupsid,sni=www.google.com --new '
+            f'--filter-tcp=443 --hostlist=\\"{f_goog}\\" --ip-id=zero --dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,midsld --dpi-desync-repeats=11 --dpi-desync-fooling=badseq --dpi-desync-fake-tls=0x00000000 --dpi-desync-fake-tls=! --dpi-desync-fake-tls-mod=rnd,dupsid,sni=www.google.com --new '
+            f'--filter-tcp=80,443 --hostlist=\\"{f_gen}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,midsld --dpi-desync-repeats=11 --dpi-desync-fooling=badseq --dpi-desync-fake-tls=0x00000000 --dpi-desync-fake-tls=! --dpi-desync-fake-tls-mod=rnd,dupsid,sni=www.google.com --dpi-desync-fake-http=\\"{p_tls_max}\\" --new '
+            f'{u_quic_ipset_11} '
+            f'--filter-tcp=80,443,8443 --ipset=\\"{f_ipset}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,midsld --dpi-desync-repeats=11 --dpi-desync-fooling=badseq --dpi-desync-fake-tls=0x00000000 --dpi-desync-fake-tls=! --dpi-desync-fake-tls-mod=rnd,dupsid,sni=www.google.com --dpi-desync-fake-http=\\"{p_tls_max}\\"'
         )
     else:
         return (
-            f'--wf-tcp=80,443,2053,2083,2087,2096,8443 --wf-udp=443,19294-19344,50000-50100 '
-            f'--filter-udp=443 --dpi-desync=fake --dpi-desync-repeats=10 --dpi-desync-fake-quic=\\"{p_quic}\\" --new '
-            f'--filter-udp=19294-19344,50000-50100 --filter-l7=discord,stun --dpi-desync=fake --dpi-desync-fake-discord=\\"{p_discord}\\" --dpi-desync-fake-stun=\\"{p_discord}\\" --dpi-desync-repeats=8 --new '
-            f'--filter-tcp=80,443,2053,2083,2087,2096,8443 --dpi-desync=multisplit --dpi-desync-split-seqovl=568 --dpi-desync-split-pos=1 --dpi-desync-split-seqovl-pattern=\\"{p_tls_4pda}\\"'
+            f'{wf} {u_quic} {u_disc} '
+            f'--filter-tcp=2053,2083,2087,2096,8443 --hostlist-domains=discord.media --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fake-tls=\\"{p_tls_google}\\" --new '
+            f'--filter-tcp=443 --hostlist=\\"{f_goog}\\" --ip-id=zero --dpi-desync=hostfakesplit --dpi-desync-fooling=ts --dpi-desync-hostfakesplit-mod=host=www.google.com --new '
+            f'--filter-tcp=80,443 --hostlist=\\"{f_gen}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fake-tls=\\"{p_tls_google}\\" --dpi-desync-fake-http=\\"{p_tls_max}\\" --new '
+            f'{u_quic_ipset} '
+            f'--filter-tcp=80,443,8443 --ipset=\\"{f_ipset}\\" --hostlist-exclude=\\"{f_excl}\\" --ipset-exclude=\\"{f_ipset_excl}\\" --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fooling=ts --dpi-desync-fake-tls=\\"{p_tls_google}\\" --dpi-desync-fake-http=\\"{p_tls_max}\\"'
         )
 
 def is_admin():
@@ -157,33 +206,82 @@ def elevate_privileges():
             pass
     return is_admin()
 
-def ensure_binaries():
-    """Verify winws binaries and Flowseal fake payload bin files exist in INSTALL_DIR or bin/."""
-    base_dir = get_base_dir()
-    bin_dir = get_bin_dir()
+def enable_tcp_timestamps():
+    """Enable RFC 1323 TCP Timestamps required for winws fake/split packet desync."""
     if platform.system() == "Windows":
         try:
-            os.makedirs(INSTALL_DIR, exist_ok=True)
+            subprocess.run(
+                "netsh interface tcp set global timestamps=enabled",
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
         except Exception:
             pass
 
-    # Check which files are missing across bin_dir, base_dir and INSTALL_DIR
-    missing = []
+EXTRA_GENERAL_DOMAINS = [
+    "t.me",
+    "telegram.org",
+    "telegram.me",
+    "web.telegram.org",
+    "api.telegram.org",
+    "venus.web.telegram.org",
+    "aurora.web.telegram.org",
+    "vesta.web.telegram.org",
+    "pluto.web.telegram.org",
+    "flora.web.telegram.org",
+    "telesco.pe",
+    "tdesktop.com",
+    "telegra.ph",
+    "telegram-cdn.org",
+    "stel.com",
+    "spotify.com",
+    "spclient.wg.spotify.com",
+    "ap.spotify.com",
+    "apresolve.spotify.com",
+    "dealer.spotify.com",
+    "audio-ak-spotify-com.akamaized.net",
+    "audio-ak.spotify.com.edgesuite.net",
+    "audio-fa.scdn.co",
+    "heads-fa.scdn.co",
+    "spotifycdn.com",
+    "scdn.co",
+    "open.spotify.com",
+    "api.spotify.com"
+]
+
+def ensure_binaries():
+    """Verify winws binaries, Flowseal payloads, and hostlists with Telegram & Spotify exist."""
+    base_dir = get_base_dir()
+    bin_dir = get_bin_dir()
+    lists_dir = get_lists_dir()
+
+    enable_tcp_timestamps()
+
+    if platform.system() == "Windows":
+        try:
+            os.makedirs(INSTALL_DIR, exist_ok=True)
+            os.makedirs(os.path.join(INSTALL_DIR, "bin"), exist_ok=True)
+            os.makedirs(os.path.join(INSTALL_DIR, "lists"), exist_ok=True)
+        except Exception:
+            pass
+
+    # Ensure binary files exist
+    target_bin = os.path.join(INSTALL_DIR, "bin") if platform.system() == "Windows" else bin_dir
+    missing_bins = []
     for b in REQUIRED_BINARIES:
         in_bin = os.path.exists(os.path.join(bin_dir, b))
         in_base = os.path.exists(os.path.join(base_dir, b))
-        in_inst = os.path.exists(os.path.join(INSTALL_DIR, b))
+        in_inst = os.path.exists(os.path.join(INSTALL_DIR, "bin", b)) or os.path.exists(os.path.join(INSTALL_DIR, b))
         if not in_bin and not in_base and not in_inst:
-            missing.append(b)
+            missing_bins.append(b)
 
-    if missing:
+    if missing_bins:
         print("----------------------------------------------------------------")
-        print(f"[СКАЧИВАНИЕ] Загрузка компонентов zapret ({len(missing)} шт)...")
+        print(f"[СКАЧИВАНИЕ] Загрузка компонентов zapret ({len(missing_bins)} шт)...")
         print("----------------------------------------------------------------")
 
-        target_dir = bin_dir
-
-        core_missing = [b for b in ["winws.exe", "WinDivert.dll", "WinDivert64.sys", "cygwin1.dll"] if b in missing]
+        core_missing = [b for b in ["winws.exe", "WinDivert.dll", "WinDivert64.sys", "cygwin1.dll"] if b in missing_bins]
         if core_missing:
             try:
                 req = urllib.request.Request(
@@ -195,35 +293,96 @@ def ensure_binaries():
                 with zipfile.ZipFile(io.BytesIO(data)) as z:
                     for b in core_missing:
                         zip_path = f"zapret-v72.13/binaries/windows-x86_64/{b}"
-                        with open(os.path.join(target_dir, b), "wb") as f_out:
+                        with open(os.path.join(target_bin, b), "wb") as f_out:
                             f_out.write(z.read(zip_path))
                         print(f"[РАСПАКОВАН] {b}")
             except Exception as e:
                 print(f"[ОШИБКА] Не удалось скачать ядро: {e}")
                 return False
 
-        payload_missing = [p for p in PAYLOAD_FILES if p in missing]
+        payload_missing = [p for p in PAYLOAD_FILES if p in missing_bins]
         for p in payload_missing:
             try:
                 url = PAYLOAD_BASE_URL + p
                 req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     data = resp.read()
-                with open(os.path.join(target_dir, p), "wb") as f_out:
+                with open(os.path.join(target_bin, p), "wb") as f_out:
                     f_out.write(data)
                 print(f"[СКАЧАН ПЕЙЛОАД] {p}")
             except Exception as e:
                 print(f"[ОШИБКА] Не удалось скачать {p}: {e}")
                 return False
 
-    # Sync files into INSTALL_DIR to guarantee 100% clean ASCII path (C:\zapret)
+    # Ensure list files exist
+    target_lists = os.path.join(INSTALL_DIR, "lists") if platform.system() == "Windows" else lists_dir
+    os.makedirs(target_lists, exist_ok=True)
+    list_base_url = "https://raw.githubusercontent.com/Flowseal/zapret-discord-youtube/main/lists/"
+    for l in LIST_FILES:
+        loc_path = os.path.join(target_lists, l)
+        src_path = os.path.join(lists_dir, l)
+        if not os.path.exists(loc_path) and not os.path.exists(src_path):
+            try:
+                url = list_base_url + l
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    data = resp.read()
+                with open(loc_path, "wb") as f_out:
+                    f_out.write(data)
+                print(f"[СКАЧАН СПИСОК] {l}")
+            except Exception:
+                # Fallback dummy file
+                with open(loc_path, "w", encoding="utf-8") as f_out:
+                    f_out.write("203.0.113.113/32\n" if "ipset" in l else "example.com\n")
+
+    # Add Telegram and Spotify domains into list-general.txt
+    for check_dir in [target_lists, lists_dir]:
+        f_gen = os.path.join(check_dir, "list-general.txt")
+        if os.path.exists(f_gen):
+            try:
+                with open(f_gen, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                append_domains = [d for d in EXTRA_GENERAL_DOMAINS if d not in content]
+                if append_domains:
+                    with open(f_gen, "a", encoding="utf-8") as f:
+                        f.write("\n# Telegram & Spotify\n" + "\n".join(append_domains) + "\n")
+            except Exception:
+                pass
+
+    # Ensure dummy user files exist
+    for dummy in ["list-general-user.txt", "list-exclude-user.txt", "ipset-exclude-user.txt"]:
+        for d in [target_lists, lists_dir]:
+            p = os.path.join(d, dummy)
+            if not os.path.exists(p):
+                try:
+                    with open(p, "w", encoding="utf-8") as f:
+                        f.write("# user custom list\n")
+                except Exception:
+                    pass
+
+    # Sync all files to C:\zapret for 100% clean ASCII path
     if platform.system() == "Windows" and os.path.exists(INSTALL_DIR):
+        inst_bin = os.path.join(INSTALL_DIR, "bin")
+        inst_lists = os.path.join(INSTALL_DIR, "lists")
+        os.makedirs(inst_bin, exist_ok=True)
+        os.makedirs(inst_lists, exist_ok=True)
+
         for b in REQUIRED_BINARIES:
             src = os.path.join(bin_dir, b) if os.path.exists(os.path.join(bin_dir, b)) else os.path.join(base_dir, b)
-            dst = os.path.join(INSTALL_DIR, b)
-            if os.path.exists(src) and not os.path.exists(dst):
+            if os.path.exists(src):
+                for dest in [os.path.join(inst_bin, b), os.path.join(INSTALL_DIR, b)]:
+                    if not os.path.exists(dest):
+                        try:
+                            shutil.copy2(src, dest)
+                        except Exception:
+                            pass
+
+        for l in os.listdir(lists_dir) if os.path.isdir(lists_dir) else []:
+            src = os.path.join(lists_dir, l)
+            dest = os.path.join(inst_lists, l)
+            if os.path.isfile(src) and not os.path.exists(dest):
                 try:
-                    shutil.copy2(src, dst)
+                    shutil.copy2(src, dest)
                 except Exception:
                     pass
 
@@ -347,13 +506,15 @@ def terminate_conflicts(silent=False):
     if not silent:
         print("================================================================")
 
-def test_host_probe(host, port=443, timeout=3.0):
+def test_host_probe(host, port=443, timeout=4.0):
     start = time.perf_counter()
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(timeout)
     try:
         sock.connect((host, port))
         ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
         with ctx.wrap_socket(sock, server_hostname=host) as ssock:
             lat = (time.perf_counter() - start) * 1000.0
             return True, lat, "TLS Handshake OK"
@@ -361,21 +522,27 @@ def test_host_probe(host, port=443, timeout=3.0):
         lat = (time.perf_counter() - start) * 1000.0
         return False, lat, str(e)
     finally:
-        sock.close()
+        try:
+            sock.close()
+        except Exception:
+            pass
 
 def run_diagnostics():
     print("================================================================")
-    print("ДИАГНОСТИКА ДОСТУПНОСТИ YOUTUBE И DISCORD")
+    print("ДИАГНОСТИКА ДОСТУПНОСТИ СЕРВИСОВ (YOUTUBE, DISCORD, TG, SPOTIFY)")
     print("================================================================")
     targets = [
         ("YouTube Main", "www.youtube.com"),
-        ("YouTube Video CDN", "googlevideo.com"),
         ("Discord Voice & Gateway", "gateway.discord.gg"),
-        ("Discord Main API", "discord.com")
+        ("Discord Main API", "discord.com"),
+        ("Telegram Web", "web.telegram.org"),
+        ("Telegram Short (t.me)", "t.me"),
+        ("Telegram API", "api.telegram.org"),
+        ("Spotify Client", "spclient.wg.spotify.com")
     ]
 
-    print(f"{'РЕСУРС':<26} {'УЗЕЛ':<36} {'СТАТУС':<12} {'ПИНГ'}")
-    print("-" * 82)
+    print(f"{'РЕСУРС':<26} {'УЗЕЛ':<32} {'СТАТУС':<12} {'ПИНГ'}")
+    print("-" * 78)
     failed = 0
     for name, host in targets:
         ok, lat, msg = test_host_probe(host)
@@ -383,12 +550,12 @@ def run_diagnostics():
         lat_str = f"{lat:6.1f} ms" if ok else "ТАЙМАУТ"
         if not ok:
             failed += 1
-        print(f"{name:<26} {host:<36} {status:<12} {lat_str}")
+        print(f"{name:<26} {host:<32} {status:<12} {lat_str}")
 
-    print("-" * 82)
+    print("-" * 78)
     print("")
     rec = STRATEGIES[0]
-    print("Рекомендуемая конфигурация (YouTube 4K + Discord Voice UDP):")
+    print("Рекомендуемая конфигурация (YouTube 4K, Discord, Telegram, Spotify):")
     print(f"Режим: {rec['name']}")
     print("================================================================")
     return rec
@@ -406,8 +573,9 @@ def install_winws_service(flags=None, strategy_id="1", bin_name="winws.exe"):
     # Apply clean Google IPs to hosts to defeat ISP DNS poisoning
     fix_youtube_dns()
 
-    # Use clean ASCII path C:\zapret to eliminate any Cyrillic encoding bugs
-    bin_path = os.path.join(INSTALL_DIR if os.path.exists(INSTALL_DIR) else get_base_dir(), bin_name)
+    # Use clean ASCII path C:\zapret\bin\winws.exe
+    inst_bin = os.path.join(INSTALL_DIR, "bin", bin_name)
+    bin_path = inst_bin if os.path.exists(inst_bin) else os.path.join(INSTALL_DIR, bin_name)
 
     if flags is None:
         flags = get_strategy_flags(strategy_id)
@@ -415,10 +583,12 @@ def install_winws_service(flags=None, strategy_id="1", bin_name="winws.exe"):
     # Clean existing service
     subprocess.run("sc.exe stop winws", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     subprocess.run("sc.exe delete winws", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.run("sc.exe stop zapret", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.run("sc.exe delete zapret", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     time.sleep(0.5)
 
     full_bin = f'\\"{bin_path}\\" {flags}'
-    cmd = f'sc.exe create winws binPath= "{full_bin}" start= auto DisplayName= "Zapret WinWS"'
+    cmd = f'sc.exe create winws binPath= "{full_bin}" start= auto DisplayName= "zapret"'
     
     print("[ИНФО] Регистрация службы Windows в C:\\zapret...")
     res = subprocess.run(cmd, shell=True, capture_output=True)
@@ -427,13 +597,15 @@ def install_winws_service(flags=None, strategy_id="1", bin_name="winws.exe"):
         print(f"[ОШИБКА] Ошибка при создании службы: {err}")
         return False
 
+    subprocess.run('sc.exe description winws "Zapret DPI bypass software (YouTube, Discord, Telegram, Spotify)"', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
     print("[ИНФО] Запуск службы...")
     start_res = subprocess.run("sc.exe start winws", shell=True, capture_output=True)
     time.sleep(1.0)
     st = get_service_status("winws")
     if st == "RUNNING":
         print("[УСПЕХ] Служба zapret успешно создана и запущена!")
-        print("[ИНФО] YouTube 4K и голосовые каналы Discord разблокированы.")
+        print("[ИНФО] YouTube 4K, Discord, Telegram и Spotify разблокированы.")
         print("[ИНФО] Автозапуск при включении Windows: ВКЛЮЧЕН.")
         return True
     else:
@@ -492,15 +664,15 @@ def interactive_menu():
 
         print()
         print("================================================================")
-        print("  ZAPRET-AUTO: АВТОМАТИЧЕСКИЙ ОБХОД ДЛЯ YOUTUBE И DISCORD")
+        print("  ZAPRET-AUTO: АВТОМАТИЧЕСКИЙ ОБХОД (YOUTUBE, DISCORD, TG, SPOTIFY)")
         print("================================================================")
         print(f" Статус службы:        [{st_text}]")
         print(f" Права администратора: [{admin_text}]")
         print(f" Конфликты в системе:  [{conf_text}]")
         print("----------------------------------------------------------------")
         print(" [1] ВКЛЮЧИТЬ ОБХОД (1 клик — автоматическая настройка и запуск)")
-        print(" [2] Выбрать профиль под своего провайдера (Ростелеком, МТС и др.)")
-        print(" [3] Проверить доступность YouTube и Discord")
+        print(" [2] Выбрать профиль под своего провайдера (Flowseal стратегии)")
+        print(" [3] Проверить доступность YouTube, Discord, Telegram, Spotify")
         print(" [4] Выключить обход (Остановить службу)")
         print(" [5] Полностью удалить службу из Windows")
         print(" [6] Закрыть конфликтующие программы (GoodbyeDPI и др.)")
@@ -513,7 +685,7 @@ def interactive_menu():
             print("\n--- АВТОМАТИЧЕСКАЯ УСТАНОВКА И ЗАПУСК В 1 КЛИК ---")
             if not is_admin():
                 elevate_privileges()
-            print("[1/4] Проверка файлов winws, WinDivert, cygwin и пейлоадов...")
+            print("[1/4] Проверка файлов winws, WinDivert, cygwin, пейлоадов и списков...")
             if not ensure_binaries():
                 input("\nНажмите Enter для возврата...")
                 continue
@@ -525,7 +697,7 @@ def interactive_menu():
             ok = install_winws_service(strategy_id="1")
             if ok:
                 print("\n" + "=" * 64)
-                print("  [✓] УСПЕШНО! YouTube 4K и Discord разблокированы.")
+                print("  [✓] УСПЕШНО! YouTube 4K, Discord, Telegram и Spotify разблокированы.")
                 print("  [✓] Установлено в чистый путь C:\\zapret без сбоев кодировки.")
                 print("  [✓] Служба будет стартовать автоматически с Windows.")
                 print("=" * 64)

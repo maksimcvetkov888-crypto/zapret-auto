@@ -8,19 +8,19 @@
 
 Автономный диспетчер службы `winws` (Zapret) для Windows с автоматической диагностикой провайдера и установкой службы в один клик.
 
-Решает проблему постоянных блокировок и замедления YouTube и Discord без необходимости вручную перебирать десятки `.bat` и `.cmd` скриптов.
+Решает проблему постоянных блокировок и замедления **YouTube**, **Discord**, **Telegram** и **Spotify** на базе проверенных пресетов Flowseal (`zapret-discord-youtube`).
 
 ### Возможности
 
-- **Экспресс-диагностика провайдера (~5 секунд)**: замер доступности узлов YouTube (`googlevideo.com`) и Discord (`gateway.discord.gg`) и авто-подбор победной комбинации флагов.
-- **Управление службой Windows**: установка `winws` в автозагрузку Windows (через `sc.exe`) с оптимальными параметрами.
+- **Экспресс-диагностика (~5 секунд)**: замер доступности узлов YouTube, Discord, Telegram и Spotify (`spclient.wg.spotify.com`, `t.me`).
+- **Управление службой Windows**: установка `winws` в автозагрузку Windows (через `sc.exe`) в чистый путь `C:\zapret`.
 - **Детектор конфликтов**: обнаружение и завершение зависших процессов `winws`, `goodbyedpi`, `byedpi` и освобождение заблокированного драйвера `WinDivert`.
-- **5 проверенных пресетов**:
-  1. *General Fast Split*: скоростной сплит TLS ClientHello (Ростелеком, МТС, Дом.ру).
-  2. *Discord & YouTube Fake Disoob*: комбинация фейковых пакетов и OOB для жестких ТСПУ (Билайн, Мегафон).
-  3. *Autottl Hostcase Combo*: заниженный TTL с искажением контрольной суммы (Tele2, региональные провайдеры).
-  4. *Multi-split SNI Drop*: резка пакетов прямо посреди доменного имени.
-  5. *Aggressive Fake ClientHello*: повторная инъекция фейков для жесткой фильтрации.
+- **5 проверенных пресетов Flowseal**:
+  1. *General (Default)*: multisplit 4PDA + Google + Discord UDP fake (YouTube 4K, Discord, Telegram, Spotify).
+  2. *General (ALT)*: фейковые TLS пакеты с временными метками TCP (Ростелеком, Дом.ру, МТС).
+  3. *General (ALT2)*: multisplit pos 2 seqovl 652 для строгой фильтрации ТСПУ.
+  4. *General (FAKE TLS AUTO)*: dynamic multidisorder с подменой SNI и сессионных ID (Билайн, Мегафон, Tele2).
+  5. *General (SIMPLE FAKE)*: облегченный hostfakesplit TS.
 - Интерактивное терминальное меню в стиле Zapret.
 - Работает без внешних зависимостей (чистый Python, компилируется в автономный `.exe`).
 
