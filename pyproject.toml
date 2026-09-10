@@ -1,0 +1,14 @@
+[project]
+name = "zapret-auto"
+version = "0.1.0"
+description = "Zero-dependency Windows service dispatcher and automated DPI strategy optimizer for Zapret."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "Maksim Tsvetkov", email = "maksimcvetkov888@gmail.com" }
+]
+
+[project.urls]
+Homepage = "https://github.com/maksimcvetkov888-crypto/zapret-auto"
+Repository = "https://github.com/maksimcvetkov888-crypto/zapret-auto"
